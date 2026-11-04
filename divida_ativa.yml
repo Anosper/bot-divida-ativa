@@ -1,0 +1,28 @@
+name: Bot Divida Ativa
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # liga a cada 6 horas (cada execução dura até ~5h50)
+  workflow_dispatch:         # permite ligar manualmente
+
+concurrency:
+  group: divida-ativa
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright firebase-admin python-dotenv
+      - run: playwright install --with-deps chromium
+      - name: Rodar robô
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DIVIDA_HEADLESS: "true"
+          DIVIDA_MAX_HORAS: "5.8"
+        run: python bot_divida_ativa.py
