@@ -18,18 +18,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install playwright firebase-admin python-dotenv
-      - run: playwright install --with-deps chromium
+      - run: pip install firebase-admin python-dotenv
+      # guarda a base da PGFN entre execuções (evita baixar tudo de novo)
+      - uses: actions/cache@v4
+        with:
+          path: dados_pgfn
+          key: pgfn-${{ github.run_id }}
+          restore-keys: pgfn-
       - name: Rodar robô
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          DIVIDA_HEADLESS: "true"
           DIVIDA_MAX_HORAS: "5.8"
         run: python bot_divida_ativa.py
-      - name: Guardar prints de erro
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug_divida
-          path: debug_divida/
-          if-no-files-found: ignore
