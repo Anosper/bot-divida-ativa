@@ -1,0 +1,37 @@
+name: Bot Negociacao PGFN
+
+on:
+  schedule:
+    - cron: "*/10 11-23 * * 1-6"   # a cada 10 min, das 8h às 20h (Brasília), de segunda a sábado
+  workflow_dispatch:                # permite rodar na hora (aba Actions > Run workflow)
+
+concurrency:
+  group: negociacao-pgfn
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements_negociacao.txt
+      - run: pip install -r requirements_negociacao.txt
+      - name: Há pedidos pendentes?
+        id: checar
+        env:
+          PROCESSOS_FIREBASE_KEY: ${{ secrets.PROCESSOS_FIREBASE_KEY }}
+          NEG_SO_CHECAR: "1"
+        run: python bot_negociacao.py
+      - name: Instalar navegador
+        if: steps.checar.outputs.pendentes != '0'
+        run: playwright install --with-deps chromium
+      - name: Consultar negociações
+        if: steps.checar.outputs.pendentes != '0'
+        env:
+          PROCESSOS_FIREBASE_KEY: ${{ secrets.PROCESSOS_FIREBASE_KEY }}
+        run: python bot_negociacao.py
