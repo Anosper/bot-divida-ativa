@@ -1,0 +1,43 @@
+name: Bot Negociacao PGFN
+
+on:
+  schedule:
+    - cron: "30 */6 * * *"   # religa a cada 6 horas (cada execução dura até ~5h50 e fica escutando o site)
+  workflow_dispatch:         # permite ligar manualmente
+    inputs:
+      uma_vez:
+        description: "Teste: atende os pedidos pendentes e encerra (gera prints em Artifacts)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: negociacao-pgfn
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements_negociacao.txt
+      - run: pip install -r requirements_negociacao.txt
+      - run: playwright install --with-deps chromium
+      - name: Rodar robô
+        env:
+          PROCESSOS_FIREBASE_KEY: ${{ secrets.PROCESSOS_FIREBASE_KEY }}
+          NEG_MAX_HORAS: "5.8"
+          NEG_UMA_VEZ: ${{ inputs.uma_vez && '1' || '0' }}
+        run: python bot_negociacao.py
+      - name: Guardar prints do painel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prints-painel
+          path: debug/
+          if-no-files-found: ignore
+          retention-days: 3
