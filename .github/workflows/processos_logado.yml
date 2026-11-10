@@ -1,0 +1,61 @@
+name: Bot Processos (TRF com login)
+
+on:
+  schedule:
+    - cron: "45 */6 * * *"   # religa a cada 6 horas (cada execução dura até ~5h50 e fica escutando o site)
+  workflow_dispatch:
+    inputs:
+      uma_vez:
+        description: "Teste: atende os pedidos pendentes e encerra (gera prints em Artifacts)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: processos-logado
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements_processos_logado.txt
+      - run: pip install -r requirements_processos_logado.txt
+      - run: playwright install --with-deps chromium chrome
+      - run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Rodar robô
+        env:
+          PROCESSOS_FIREBASE_KEY: ${{ secrets.PROCESSOS_FIREBASE_KEY }}
+          # eproc dos TRFs
+          EPROC_TRF2_USUARIO: ${{ secrets.EPROC_TRF2_USUARIO }}
+          EPROC_TRF2_SENHA: ${{ secrets.EPROC_TRF2_SENHA }}
+          EPROC_TRF2_TOTP_SECRET: ${{ secrets.EPROC_TRF2_TOTP_SECRET }}
+          EPROC_TRF4_USUARIO: ${{ secrets.EPROC_TRF4_USUARIO }}
+          EPROC_TRF4_SENHA: ${{ secrets.EPROC_TRF4_SENHA }}
+          EPROC_TRF4_TOTP_SECRET: ${{ secrets.EPROC_TRF4_TOTP_SECRET }}
+          EPROC_TRF6_USUARIO: ${{ secrets.EPROC_TRF6_USUARIO }}
+          EPROC_TRF6_SENHA: ${{ secrets.EPROC_TRF6_SENHA }}
+          EPROC_TRF6_TOTP_SECRET: ${{ secrets.EPROC_TRF6_TOTP_SECRET }}
+          # PJe dos TRFs (mesmos Secrets do bot PJe)
+          PJE_USUARIO: ${{ secrets.PJE_USUARIO }}
+          PJE_TOTP_SECRET: ${{ secrets.PJE_TOTP_SECRET }}
+          PJE_SENHA_TRF1: ${{ secrets.PJE_SENHA_TRF1 }}
+          PJE_SENHA_TRF5: ${{ secrets.PJE_SENHA_TRF5 }}
+          BOT_CONFIG_JSON: ${{ secrets.BOT_CONFIG_JSON }}
+          PL_MAX_HORAS: "5.8"
+          PL_NAVEGADOR: chrome
+          PL_UMA_VEZ: ${{ inputs.uma_vez && '1' || '0' }}
+        run: xvfb-run -a python bot_processos_logado.py
+      - name: Guardar prints de diagnóstico (só no teste manual com 'uma_vez')
+        if: ${{ always() && inputs.uma_vez }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: prints-processos
+          path: debug/
+          if-no-files-found: ignore
+          retention-days: 2
